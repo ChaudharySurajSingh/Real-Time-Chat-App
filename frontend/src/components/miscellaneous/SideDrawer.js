@@ -94,8 +94,6 @@ function SideDrawer() {
   };
 
   const accessChat = async (userId) => {
-    console.log(userId);
-
     try {
       setLoadingChat(true);
       const config = {
@@ -128,19 +126,21 @@ function SideDrawer() {
         d="flex"
         justifyContent="space-between"
         alignItems="center"
-        bg="white"
+        bg={"gray.100"}
+        textColor={"black"}
         w="100%"
         p="5px 10px 5px 10px"
         borderWidth="5px"
       >
         <Tooltip label="Search Users to chat" hasArrow placement="bottom-end">
-          <Button variant="ghost" onClick={onOpen}>
-            <i className="fas fa-search"></i>
-            <Text d={{ base: "none", md: "flex" }} px={4}>
+          <Button variant="ghost" onClick={onOpen} color="black">
+            <i className="fas fa-search" style={{ color: "black" }}></i>
+            <Text d={{ base: "none", md: "flex" }} px={4} color={"black"}>
               Search User
             </Text>
           </Button>
         </Tooltip>
+
         <Text fontSize="2xl" fontFamily="Work sans">
           Ronex-Chat
         </Text>
@@ -153,7 +153,7 @@ function SideDrawer() {
               />
               <BellIcon fontSize="2xl" m={1} />
             </MenuButton>
-            <MenuList pl={2}>
+            <MenuList pl={2} bg={"gray.200"}>
               {!notification.length && "No New Messages"}
               {notification.map((notif) => (
                 <MenuItem
@@ -171,7 +171,11 @@ function SideDrawer() {
             </MenuList>
           </Menu>
           <Menu>
-            <MenuButton as={Button} bg="white" rightIcon={<ChevronDownIcon />}>
+            <MenuButton
+              as={Button}
+              bg="gray.100"
+              rightIcon={<ChevronDownIcon />}
+            >
               <Avatar
                 size="sm"
                 cursor="pointer"
@@ -179,12 +183,21 @@ function SideDrawer() {
                 src={user.pic}
               />
             </MenuButton>
-            <MenuList>
+            <MenuList
+              bg={"gray.200"}
+              color={"black"}
+              _hover={{ bg: "gray.400" }}
+              border="1px"
+              borderColor="gray.600"
+              borderRadius="md"
+            >
               <ProfileModal user={user}>
-                <MenuItem>My Profile</MenuItem>{" "}
+                <MenuItem _hover={{ bg: "gray.300" }}>My Profile</MenuItem>
               </ProfileModal>
-              <MenuDivider />
-              <MenuItem onClick={logoutHandler}>Logout</MenuItem>
+              <MenuDivider borderColor="gray.600" />
+              <MenuItem _hover={{ bg: "gray.300" }} onClick={logoutHandler}>
+                Logout
+              </MenuItem>
             </MenuList>
           </Menu>
         </div>
@@ -193,7 +206,9 @@ function SideDrawer() {
       <Drawer placement="left" onClose={onClose} isOpen={isOpen}>
         <DrawerOverlay />
         <DrawerContent>
-          <DrawerHeader borderBottomWidth="1px">Search Users</DrawerHeader>
+          <DrawerHeader borderBottomWidth="1px" bg={"gray.400"}>
+            Search Users
+          </DrawerHeader>
           <DrawerBody>
             <Box d="flex" pb={2}>
               <Input
