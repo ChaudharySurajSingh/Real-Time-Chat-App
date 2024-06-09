@@ -4,12 +4,13 @@ This is a real-time chat application built using the MERN stack (MongoDB, Expres
 
 ## Features
 
-- Real-time messaging
-- Group chat
 - User authentication
+- Notifications
+- user search(by name or email)
+- Real-time messaging
 - Emoji support
 - Personal chat
-- Notifications
+- Group chat
 
 ## Technologies Used
 
