@@ -1,57 +1,79 @@
-const asyncHandler = require("express-async-handler");
-const Message = require("../models/messageModel");
-const User = require("../models/userModel");
-const Chat = require("../models/chatModel");
+import asyncHandler from "express-async-handler";
+import mongoose from "mongoose";
+import Chat from "../models/chatModel.js";
+import Message from "../models/messageModel.js";
+const MESSAGE_LIMIT = 50;
+
+const ensureValidObjectId = (id, label) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    const error = new Error(`Invalid ${label}`);
+    error.statusCode = 400;
+    throw error;
+  }
+};
 
 //@description     Get all Messages
-//@route           GET /api/Message/:chatId
+//@route           GET /api/message/:chatId
 //@access          Protected
 const allMessages = asyncHandler(async (req, res) => {
-  try {
-    const messages = await Message.find({ chat: req.params.chatId })
-      .populate("sender", "name pic email")
-      .populate("chat");
-    res.json(messages);
-  } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
+  const { chatId } = req.params;
+  ensureValidObjectId(chatId, "chatId");
+
+  const chat = await Chat.findOne({ _id: chatId, users: req.user._id }).select("_id");
+
+  if (!chat) {
+    res.status(404);
+    throw new Error("Chat not found");
   }
+
+  const messages = await Message.find({ chat: chatId })
+    .populate("sender", "name email")
+    .populate("chat");
+
+  res.json(messages);
 });
 
 //@description     Create New Message
-//@route           POST /api/Message/
+//@route           POST /api/message/
 //@access          Protected
 const sendMessage = asyncHandler(async (req, res) => {
   const { content, chatId } = req.body;
 
-  if (!content || !chatId) {
-    console.log("Invalid data passed into request");
-    return res.sendStatus(400);
+  if (!content?.trim() || !chatId) {
+    res.status(400);
+    throw new Error("Message content and chatId are required");
   }
 
-  var newMessage = {
+  if (content.trim().length > MESSAGE_LIMIT) {
+    res.status(400);
+    throw new Error(`Message must be ${MESSAGE_LIMIT} characters or less`);
+  }
+
+  ensureValidObjectId(chatId, "chatId");
+
+  const chat = await Chat.findOne({ _id: chatId, users: req.user._id }).select("_id");
+
+  if (!chat) {
+    res.status(404);
+    throw new Error("Chat not found");
+  }
+
+  let message = await Message.create({
     sender: req.user._id,
-    content: content,
+    content: content.trim(),
     chat: chatId,
-  };
+  });
 
-  try {
-    var message = await Message.create(newMessage);
-
-    message = await message.populate("sender", "name pic").execPopulate();
-    message = await message.populate("chat").execPopulate();
-    message = await User.populate(message, {
-      path: "chat.users",
-      select: "name pic email",
+  message = await Message.findById(message._id)
+    .populate("sender", "name email")
+    .populate({
+      path: "chat",
+      populate: { path: "users", select: "name email" },
     });
 
-    await Chat.findByIdAndUpdate(req.body.chatId, { latestMessage: message });
+  await Chat.findByIdAndUpdate(chatId, { latestMessage: message._id });
 
-    res.json(message);
-  } catch (error) {
-    res.status(400);
-    throw new Error(error.message);
-  }
+  res.status(201).json(message);
 });
 
-module.exports = { allMessages, sendMessage };
+export { allMessages, sendMessage };

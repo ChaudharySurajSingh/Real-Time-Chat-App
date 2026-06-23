@@ -1,91 +1,123 @@
-const express = require("express");
-const connectDB = require("./config/db");
-const dotenv = require("dotenv");
-const userRoutes = require("./routes/userRoutes");
-const chatRoutes = require("./routes/chatRoutes");
-const messageRoutes = require("./routes/messageRoutes");
-const { notFound, errorHandler } = require("./middleware/errorMiddleware");
-const path = require("path");
+import dotenv from "dotenv";
+import express from "express";
+import http from "http";
+import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
+import { Server } from "socket.io";
+import connectDB from "./config/db.js";
+import userRoutes from "./routes/userRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import messageRoutes from "./routes/messageRoutes.js";
+import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
 
-dotenv.config();
-connectDB();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+
+const requiredEnv = ["MONGO_URI", "JWT_SECRET"];
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+
+if (missingEnv.length) {
+  console.error(`Missing required environment variables: ${missingEnv.join(", ")}`);
+  process.exit(1);
+}
+
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-app.use(express.json()); // to accept json data
+export const getAllowedOrigins = () =>
+  (process.env.CLIENT_URL || "http://localhost:3000,http://127.0.0.1:3000")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
-// app.get("/", (req, res) => {
-//   res.send("API Running!");
-// });
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = getAllowedOrigins();
+
+  if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== "production") {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+  }
+
+  res.header("Vary", "Origin");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
+
+app.use(express.json({ limit: "1mb" }));
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+  });
+});
 
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
 
-// --------------------------deployment------------------------------
+app.get("/", (req, res) => {
+  res.send("API is running");
+});
 
-const __dirname1 = path.resolve();
-
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname1, "/frontend/build")));
-
-  app.get("*", (req, res) =>
-    res.sendFile(path.resolve(__dirname1, "frontend", "build", "index.html"))
-  );
-} else {
-  app.get("/", (req, res) => {
-    res.send("API is running..");
-  });
-}
-
-// --------------------------deployment------------------------------
-
-// Error Handling middlewares
 app.use(notFound);
 app.use(errorHandler);
 
-const PORT = process.env.PORT;
+export const startServer = async () => {
+  await connectDB();
 
-const server = app.listen(
-  PORT,
-  console.log(`Server running on PORT ${PORT}...`.yellow.bold)
-);
-
-const io = require("socket.io")(server, {
-  pingTimeout: 60000,
-  cors: {
-    origin: "http://localhost:3000",
-    // credentials: true,
-  },
-});
-
-io.on("connection", (socket) => {
-  console.log("Connected to socket.io");
-  socket.on("setup", (userData) => {
-    socket.join(userData._id);
-    socket.emit("connected");
+  const server = http.createServer(app);
+  const io = new Server(server, {
+    pingTimeout: 60000,
+    cors: { origin: getAllowedOrigins() },
   });
 
-  socket.on("join chat", (room) => {
-    socket.join(room);
-    console.log("User Joined Room: " + room);
+  io.on("connection", (socket) => {
+    socket.on("setup", (userData) => {
+      if (!userData?._id) return;
+      socket.join(userData._id);
+      socket.emit("connected");
+    });
+
+    socket.on("join chat", (room) => socket.join(room));
+    socket.on("typing", (room) => socket.in(room).emit("typing"));
+    socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
+
+    socket.on("new message", (newMessageReceived) => {
+      const chat = newMessageReceived.chat;
+
+      if (!chat?.users) return;
+
+      chat.users.forEach((chatUser) => {
+        if (chatUser._id === newMessageReceived.sender._id) return;
+        socket.in(chatUser._id).emit("message received", newMessageReceived);
+      });
+    });
+
   });
-  socket.on("typing", (room) => socket.in(room).emit("typing"));
-  socket.on("stop typing", (room) => socket.in(room).emit("stop typing"));
 
-  socket.on("new message", (newMessageRecieved) => {
-    var chat = newMessageRecieved.chat;
-
-    if (!chat.users) return console.log("chat.users not defined");
-
-    chat.users.forEach((user) => {
-      if (user._id == newMessageRecieved.sender._id) return;
-
-      socket.in(user._id).emit("message recieved", newMessageRecieved);
+  return new Promise((resolve) => {
+    server.listen(PORT, () => {
+      console.info(`Server running on port ${server.address().port}`);
+      resolve(server);
     });
   });
+};
 
-  socket.off("setup", () => {
-    console.log("USER DISCONNECTED");
-    socket.leave(userData._id);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer().catch((error) => {
+    console.error(`Server failed to start: ${error.message}`);
+    process.exit(1);
   });
-});
+}
+
+export { app };

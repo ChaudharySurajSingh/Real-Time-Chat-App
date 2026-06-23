@@ -1,22 +1,52 @@
-const asyncHandler = require("express-async-handler");
-const User = require("../models/userModel");
-const generateToken = require("../config/generateToken");
+import crypto from "crypto";
+import asyncHandler from "express-async-handler";
+import generateToken from "../config/generateToken.js";
+import User from "../models/userModel.js";
+
+const createAuthResponse = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  isAdmin: user.isAdmin,
+  token: generateToken(user._id),
+});
+
+const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // @description    Get or Search all users
 // @route          GET /api/user?search=
 // @access         Private (requires auth)
 const allUsers = asyncHandler(async (req, res) => {
-  const keyword = req.query.search
-    ? {
-        $or: [
-          { name: { $regex: req.query.search, $options: "i" } },
-          { email: { $regex: req.query.search, $options: "i" } },
-        ],
-      }
-    : {};
+  const search = String(req.query.search || "").trim();
 
-  // Ensure that `req.user` is available by using the protect middleware
-  const users = await User.find(keyword).find({ _id: { $ne: req.user._id } });
+  if (!search) {
+    return res.json([]);
+  }
+
+  const safeSearch = escapeRegex(search);
+  const startsWithName = new RegExp(`^${safeSearch}`, "i");
+  const containsText = new RegExp(safeSearch, "i");
+
+  const users = await User.aggregate([
+    {
+      $match: {
+        _id: { $ne: req.user._id },
+        $or: [{ name: containsText }, { email: containsText }],
+      },
+    },
+    {
+      $addFields: {
+        searchRank: {
+          $cond: [{ $regexMatch: { input: "$name", regex: startsWithName } }, 0, 1],
+        },
+      },
+    },
+    { $sort: { searchRank: 1, name: 1 } },
+    { $limit: 8 },
+    { $project: { password: 0, searchRank: 0, __v: 0 } },
+  ]);
+
   res.send(users);
 });
 
@@ -24,14 +54,26 @@ const allUsers = asyncHandler(async (req, res) => {
 // @route          POST /api/user/
 // @access         Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, pic } = req.body;
+  const { name, email, password } = req.body;
 
-  if (!name || !email || !password) {
+  if (!name?.trim() || !email?.trim() || !password) {
     res.status(400);
     throw new Error("Please enter all the fields");
   }
 
-  const userExists = await User.findOne({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!isValidEmail(normalizedEmail)) {
+    res.status(400);
+    throw new Error("Please enter a valid email address");
+  }
+
+  if (password.length < 6) {
+    res.status(400);
+    throw new Error("Password must be at least 6 characters");
+  }
+
+  const userExists = await User.findOne({ email: normalizedEmail });
 
   if (userExists) {
     res.status(400);
@@ -39,21 +81,13 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({
-    name,
-    email,
-    password, // Ensure passwords are hashed in the User model pre-save hook
-    pic,
+    name: name.trim(),
+    email: normalizedEmail,
+    password,
   });
 
   if (user) {
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      pic: user.pic,
-      token: generateToken(user._id),
-    });
+    res.status(201).json(createAuthResponse(user));
   } else {
     res.status(400);
     throw new Error("User not found");
@@ -61,26 +95,50 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 // @description    Authenticate user
-// @route          POST /api/users/login
+// @route          POST /api/user/login
 // @access         Public
 const authUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const normalizedEmail = email?.trim().toLowerCase();
 
-  const user = await User.findOne({ email });
+  if (!normalizedEmail || !password) {
+    res.status(400);
+    throw new Error("Email and password are required");
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    res.status(400);
+    throw new Error("Please enter a valid email address");
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (user && (await user.matchPassword(password))) {
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      pic: user.pic,
-      token: generateToken(user._id),
-    });
+    res.json(createAuthResponse(user));
   } else {
     res.status(401);
     throw new Error("Invalid email or password");
   }
 });
 
-module.exports = { allUsers, registerUser, authUser };
+// @description    Create or authenticate demo guest user
+// @route          POST /api/user/guest
+// @access         Public
+const guestUser = asyncHandler(async (req, res) => {
+  const guestEmail = (process.env.GUEST_EMAIL || "guest@example.com").trim().toLowerCase();
+  const guestName = process.env.GUEST_NAME || "Guest User";
+
+  let user = await User.findOne({ email: guestEmail });
+
+  if (!user) {
+    user = await User.create({
+      name: guestName,
+      email: guestEmail,
+      password: process.env.GUEST_PASSWORD || crypto.randomBytes(32).toString("hex"),
+    });
+  }
+
+  res.json(createAuthResponse(user));
+});
+
+export { allUsers, authUser, guestUser, registerUser };
