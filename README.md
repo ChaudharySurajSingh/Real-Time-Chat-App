@@ -56,10 +56,8 @@ Frontend runs on `http://localhost:3000`.
 
 ## Deploying the Frontend on Vercel
 
-This repository includes a root `vercel.json`, so Vercel can deploy the Vite frontend even though the app lives in `frontend/`.
-
 1. Import this repository in Vercel.
-2. Leave the project root as the repository root.
+2. Set the Vercel project root directory to `frontend`.
 3. Add these Vercel environment variables:
 
 ```bash
@@ -69,14 +67,14 @@ VITE_SOCKET_URL=https://your-backend-host.example.com
 
 `VITE_SOCKET_URL` can be omitted when it is the same as `VITE_API_URL`.
 
-Vercel will run:
+Vercel will run the frontend build:
 
 ```bash
-cd frontend && npm ci
-cd frontend && npm run build
+npm ci
+npm run build
 ```
 
-and publish `frontend/dist`. SPA routing is handled by the rewrite in `vercel.json`.
+and publish `dist`. SPA routing is handled by the rewrite in `frontend/vercel.json`.
 
 ## Deploying the Backend
 
