@@ -13,6 +13,10 @@ const createAuthResponse = (user) => ({
 
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const MAX_EMAIL_LENGTH = 254;
+const MAX_NAME_LENGTH = 50;
+const MAX_PASSWORD_LENGTH = 128;
+const MIN_PASSWORD_LENGTH = 8;
 
 // @description    Get or Search all users
 // @route          GET /api/user?search=
@@ -55,22 +59,36 @@ const allUsers = asyncHandler(async (req, res) => {
 // @access         Public
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
+  const normalizedName = name?.trim();
 
-  if (!name?.trim() || !email?.trim() || !password) {
+  if (!normalizedName || !email?.trim() || !password) {
     res.status(400);
     throw new Error("Please enter all the fields");
   }
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (!isValidEmail(normalizedEmail)) {
+  if (
+    normalizedEmail.length > MAX_EMAIL_LENGTH ||
+    !isValidEmail(normalizedEmail)
+  ) {
     res.status(400);
     throw new Error("Please enter a valid email address");
   }
 
-  if (password.length < 6) {
+  if (normalizedName.length > MAX_NAME_LENGTH) {
     res.status(400);
-    throw new Error("Password must be at least 6 characters");
+    throw new Error(`Name must be ${MAX_NAME_LENGTH} characters or fewer`);
+  }
+
+  if (
+    password.length < MIN_PASSWORD_LENGTH ||
+    password.length > MAX_PASSWORD_LENGTH
+  ) {
+    res.status(400);
+    throw new Error(
+      `Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`,
+    );
   }
 
   const userExists = await User.findOne({ email: normalizedEmail });
@@ -81,7 +99,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const user = await User.create({
-    name: name.trim(),
+    name: normalizedName,
     email: normalizedEmail,
     password,
   });
@@ -106,7 +124,10 @@ const authUser = asyncHandler(async (req, res) => {
     throw new Error("Email and password are required");
   }
 
-  if (!isValidEmail(normalizedEmail)) {
+  if (
+    normalizedEmail.length > MAX_EMAIL_LENGTH ||
+    !isValidEmail(normalizedEmail)
+  ) {
     res.status(400);
     throw new Error("Please enter a valid email address");
   }

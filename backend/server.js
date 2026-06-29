@@ -10,6 +10,12 @@ import userRoutes from "./routes/userRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
+import {
+  corsMiddleware,
+  createRateLimit,
+  getAllowedOrigins,
+  securityHeaders,
+} from "./middleware/securityMiddleware.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,39 +35,18 @@ if (missingEnv.length) {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-export const getAllowedOrigins = () =>
-  (process.env.CLIENT_URL || "http://localhost:3000")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+if (process.env.NODE_ENV === "production" && process.env.JWT_SECRET.length < 32) {
+  console.error("JWT_SECRET must be at least 32 characters in production");
+  process.exit(1);
+}
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = getAllowedOrigins();
-
-  if (
-    !origin ||
-    allowedOrigins.includes(origin) ||
-    process.env.NODE_ENV !== "production"
-  ) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-  }
-
-  res.header("Vary", "Origin");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-  );
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
-
+app.disable("x-powered-by");
+app.use(securityHeaders);
+app.use(corsMiddleware);
 app.use(express.json({ limit: "1mb" }));
+
+const apiRateLimit = createRateLimit({ max: 180, scope: "api" });
+const authRateLimit = createRateLimit({ max: 30, scope: "auth" });
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -71,6 +56,8 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+app.use("/api", apiRateLimit);
+app.use(["/api/user", "/api/user/login", "/api/user/guest"], authRateLimit);
 app.use("/api/user", userRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/message", messageRoutes);
