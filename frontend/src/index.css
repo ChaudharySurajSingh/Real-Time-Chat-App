@@ -84,12 +84,33 @@ button:disabled {
 }
 
 .tabs {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 0;
   margin-bottom: 16px;
-  padding: 0 0 10px;
-  border-bottom: 1px solid var(--hairline);
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: #f5f8fa;
+  overflow: hidden;
+}
+
+.tabs::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 2);
+  border-radius: 999px;
+  background: var(--twitter-blue);
+  box-shadow: 0 6px 14px rgba(29, 161, 242, 0.2);
+  transition: transform 0.22s ease;
+}
+
+.tabs.signup-active::before {
+  transform: translateX(100%);
 }
 
 .tab,
@@ -115,12 +136,14 @@ button:disabled {
 }
 
 .tab {
+  position: relative;
+  z-index: 1;
   background: transparent;
   color: var(--muted);
 }
 
 .tab.active {
-  background: var(--twitter-blue);
+  background: transparent;
   color: white;
 }
 
@@ -400,7 +423,7 @@ input {
   flex-direction: column;
 }
 
-.avatar {
+.user-initial {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -413,12 +436,12 @@ input {
   text-transform: uppercase;
 }
 
-.avatar.small {
+.user-initial.small {
   width: 34px;
   height: 34px;
 }
 
-.avatar.large {
+.user-initial.large {
   width: 92px;
   height: 92px;
   font-size: 36px;
@@ -428,13 +451,9 @@ input {
     0 8px 22px rgba(20, 23, 26, 0.16);
 }
 
-.avatar-fallback {
-  background: var(--twitter-blue);
-}
-
-.profile-chip:hover .avatar,
-.profile-chip:focus-visible .avatar,
-.profile-menu-header .avatar {
+.profile-chip:hover .user-initial,
+.profile-chip:focus-visible .user-initial,
+.profile-menu-header .user-initial {
   box-shadow: 0 0 0 2px #ffffff;
 }
 

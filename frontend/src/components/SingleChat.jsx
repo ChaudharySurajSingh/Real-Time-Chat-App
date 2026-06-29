@@ -13,7 +13,8 @@ import "./styles.css";
 let socket;
 let selectedChatCompare;
 const MESSAGE_LIMIT = 50;
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || undefined;
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || undefined;
 
 const SingleChat = ({ fetchAgain, setFetchAgain }) => {
   const [messages, setMessages] = useState([]);

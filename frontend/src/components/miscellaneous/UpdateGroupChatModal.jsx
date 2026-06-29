@@ -3,8 +3,8 @@ import apiClient from "../../config/apiClient";
 import { ChatState } from "../../Context/ChatProvider";
 import { notify } from "../../utils/toast";
 import Icon from "../Icon";
-import UserBadgeItem from "../userAvatar/UserBadgeItem";
-import UserListItem from "../userAvatar/UserListItem";
+import UserBadgeItem from "../user/UserBadgeItem";
+import UserListItem from "../user/UserListItem";
 
 const UpdateGroupChatModal = ({ fetchMessages, fetchAgain, setFetchAgain }) => {
   const [isOpen, setIsOpen] = useState(false);

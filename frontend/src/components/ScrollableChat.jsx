@@ -6,12 +6,12 @@ import {
   isSameUser,
 } from "../config/ChatLogics";
 import { ChatState } from "../Context/ChatProvider";
-import Avatar from "./Avatar";
+import UserInitial from "./UserInitial";
 
 const ScrollableChat = ({ messages }) => {
   const { selectedChat, user } = ChatState();
   const bottomRef = useRef(null);
-  const shouldShowSenderAvatars = Boolean(selectedChat?.isGroupChat);
+  const shouldShowSenderInitials = Boolean(selectedChat?.isGroupChat);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -21,8 +21,8 @@ const ScrollableChat = ({ messages }) => {
     <div className="scrollable-feed">
       {messages?.map((m, i) => {
         const isOwnMessage = m.sender._id === user._id;
-        const showAvatar =
-          shouldShowSenderAvatars &&
+        const showSenderInitial =
+          shouldShowSenderInitials &&
           (isSameSender(messages, m, i, user._id) ||
             isLastMessage(messages, i, user._id));
         const messageStyle = {
@@ -32,8 +32,8 @@ const ScrollableChat = ({ messages }) => {
 
         return (
           <div className={isOwnMessage ? "message-row mine" : "message-row"} key={m._id}>
-            {showAvatar && (
-              <Avatar user={m.sender} className="message-avatar" />
+            {showSenderInitial && (
+              <UserInitial user={m.sender} className="message-user-initial" />
             )}
             <div className="message-wrap" style={messageStyle}>
               <span className={isOwnMessage ? "message mine" : "message"}>

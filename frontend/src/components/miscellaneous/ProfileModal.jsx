@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Avatar from "../Avatar";
 import Icon from "../Icon";
+import UserInitial from "../UserInitial";
 
 const ProfileModal = ({ user, children }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +26,7 @@ const ProfileModal = ({ user, children }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="profile-content">
-              <Avatar user={user} size="large" />
+              <UserInitial user={user} size="large" />
               <h2>{user.name}</h2>
               <span className="profile-email">{user.email}</span>
             </div>

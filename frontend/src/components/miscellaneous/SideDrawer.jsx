@@ -4,10 +4,10 @@ import apiClient from "../../config/apiClient";
 import { getSender } from "../../config/ChatLogics";
 import { ChatState } from "../../Context/ChatProvider";
 import { notify } from "../../utils/toast";
-import Avatar from "../Avatar";
 import ChatLoading from "../ChatLoading";
 import Icon from "../Icon";
-import UserListItem from "../userAvatar/UserListItem";
+import UserInitial from "../UserInitial";
+import UserListItem from "../user/UserListItem";
 import ProfileModal from "./ProfileModal";
 
 function SideDrawer() {
@@ -169,7 +169,7 @@ function SideDrawer() {
                     }}
                     type="button"
                   >
-                    <Avatar user={item.latest.sender} />
+                    <UserInitial user={item.latest.sender} />
                     <span>
                       <strong>
                         {item.chat.isGroupChat
@@ -197,14 +197,14 @@ function SideDrawer() {
               }}
               type="button"
             >
-              <Avatar user={user} />
+              <UserInitial user={user} />
               <span className="profile-chip-text">{user.name}</span>
               <Icon name="chevronDown" />
             </button>
             {isMenuOpen && (
               <div className="dropdown-menu profile-menu right">
                 <div className="profile-menu-header">
-                  <Avatar user={user} />
+                  <UserInitial user={user} />
                   <span>
                     <strong>{user.name}</strong>
                     <small>{user.email}</small>

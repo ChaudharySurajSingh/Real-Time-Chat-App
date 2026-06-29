@@ -1,9 +1,9 @@
-import Avatar from "../Avatar";
+import UserInitial from "../UserInitial";
 
 const UserListItem = ({ user, handleFunction }) => {
   return (
     <button className="user-list-item" onClick={handleFunction} type="button">
-      <Avatar user={user} />
+      <UserInitial user={user} />
       <span>
         <strong>{user.name}</strong>
         <small>
